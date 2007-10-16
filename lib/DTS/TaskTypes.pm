@@ -1,11 +1,66 @@
 package DTS::TaskTypes;
 
+=head1 NAME
+
+DTS::TaskTypes - a Perl abstract class to convert DTSTask types to DTS::Task types. 
+
+=head1 SYNOPSIS
+
+    use DTS::TaskTypes;
+
+	# $task is a DTSTask object
+    print DTS::TaskTypes::convert($task->CustomTaskID), "\n";
+
+=head1 DESCRIPTION
+
+C<DTS::TaskTypes> convert a value from the C<CustomTaskID> method from a C<DTSTask> object to the respective
+type of a C<DTS::Task> object. Since the types names are not exactly the same, this abstract class is a helper
+to convert those types based on a hardcoded hash table.
+
+One should use this class only if intends to extend the C<DTS> API or create a factory.
+
+=head2 EXPORT
+
+Nothing.
+
+=cut
+
 use 5.008008;
 use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
+
+=head2 METHODS
+
+=head3 convert
+
+Expects the string returned from the C<CustomTaskID> from a C<DTSTask> object. Returns a string with of the
+respective C<DTS::Task>.
+
+Beware that not all types of C<DTSTask> objects are implemented yet. The method will return C<undef> on those
+cases.
+
+Available types are
+
+=over
+
+=item *
+DTSDataPumpTask
+
+=item *
+DTSDynamicPropertiesTask
+
+=item *
+DTSExecutePackageTask
+
+=item *
+DTSSendMailTask
+
+=back
+
+=cut
 
 sub convert {
 
@@ -39,40 +94,6 @@ sub convert {
 
 __END__
 
-=head1 NAME
-
-DTS::TaskTypes - a Perl abstract class to convert DTSTask types to DTS::Task types. 
-
-=head1 SYNOPSIS
-
-    use DTS::TaskTypes;
-
-	# $task is a DTSTask object
-    print DTS::TaskTypes::convert($task->CustomTaskID), "\n";
-
-=head1 DESCRIPTION
-
-C<DTS::TaskTypes> convert a value from the C<CustomTaskID> method from a C<DTSTask> object to the respective
-type of a C<DTS::Task> object. Since the types names are not exactly the same, this abstract class is a helper
-to convert those types based on a hardcoded hash table.
-
-One should use this class only if intends to extend the C<DTS> API or create a factory.
-
-
-=head2 EXPORT
-
-None by default.
-
-=head2 METHODS
-
-=head3 convert
-
-Expects the string returned from the C<CustomTaskID> from a C<DTSTask> object. Returns a string with of the
-respective C<DTS::Task>.
-
-Beware that not all types of C<DTSTask> objects are implemented yet. The method will return C<undef> on those
-cases.
-
 =head1 SEE ALSO
 
 =over
@@ -88,7 +109,7 @@ L<DTS::Task|DTS::Task> and it's subclasses modules.
 
 =head1 AUTHOR
 
-Alceu Rodrigues de Freitas Junior, E<lt>glasswalk3r@yahoo.com.brE<gt>
+Alceu Rodrigues de Freitas Junior, E<lt>arfreitas@cpan.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
