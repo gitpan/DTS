@@ -20,16 +20,16 @@ DTS::Assignment::Destination::Package - a subclass of DTS::Assignment::Destinati
 
     foreach my $dyn_prop ( @{ $package->get_dynamic_props } ) {
 
-		my $iterator = $dyn_props->get_assignments;
+        my $iterator = $dyn_props->get_assignments;
 
-		while ( my $assignment = $iterator->() ) {
+        while ( my $assignment = $iterator->() ) {
 
-			my $dest = $assignment->get_destination();
+            my $dest = $assignment->get_destination();
 
 		# checking all properties of the Package being handled by Dynamic Properties task
             if ( $dest->changes('Package') ) {
 
-			    print $dest->get_string(), "\n";
+                print $dest->get_string(), "\n";
 
             }
 

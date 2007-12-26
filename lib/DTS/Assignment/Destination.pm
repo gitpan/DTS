@@ -162,7 +162,8 @@ sub get_raw_string {
 =head3 set_string
 
 Modifies the destination string in the object. The string is validated against a regular expression before starting
-changing the property. The regex is "C<^(\'[\w\s]+\'\;\'[\w\s]+\')(\'[\w\s]+\')*>".
+changing the property. The regex is "C<^(\'[\w\s]+\'\;\'[\w\s]+\')(\'[\w\s]+\')*>" and it's based on the destination 
+string specification in MSDN. If the regex does not match, the method will abort program execution.
 
 The programmer must be aware that invoking C<set_string> will automatically execute the C<initialize> method (to setup 
 other attributes related to the destination) and notify the related C<DTS::Assignment>t object to modify the property 
@@ -245,6 +246,9 @@ L<DTS::Assignment> at C<perldoc>.
 =item *
 MSDN on Microsoft website and MS SQL Server 2000 Books Online are a reference about using DTS'
 object hierarchy, but one will need to convert examples written in VBScript to Perl code.
+
+=item *
+C<Class::Publisher> at C<perldoc>. This package is a subclass of C<Class::Publisher>.
 
 =back
 

@@ -28,7 +28,7 @@ Nothing.
 use 5.008008;
 use strict;
 use warnings;
-use Carp;
+use Carp qw(cluck confess);
 
 our $VERSION = '0.02';
 
@@ -66,7 +66,7 @@ sub convert {
 
     my $type = shift;
 
-    croak 'Type is an expected parameter' unless ( defined($type) );
+    confess 'Type is an expected parameter' unless ( defined($type) );
 
     my %type_convertion = (
 
@@ -82,6 +82,8 @@ sub convert {
 
     }
     else {
+
+        cluck "type $type is unknow";
 
         #Unknow type;
         return undef;
