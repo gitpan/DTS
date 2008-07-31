@@ -58,13 +58,11 @@ Nothing.
 use 5.008008;
 use strict;
 use warnings;
-use base qw(Class::Accessor);
+use base qw(Class::Accessor Class::Publisher);
 use Carp qw(confess);
 use Hash::Util qw(lock_keys);
-use base 'Class::Publisher';
-#use Log::Trace warn => {Deep => 1, Match => 'Class::Publisher'};
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head2 METHODS
 
@@ -84,17 +82,16 @@ sub new {
 
     my $class = shift;
     my $self;
-    $self->{string} = shift;
+    my $string = shift;
+
+	$self->{string} = undef;
 
     # assuming that the last part of Class name is always the target object
     $self->{who} = ( split( /\:{2}/, $class ) )[-1];
 
-    confess "'string' attribute cannot be undefined"
-      unless ( defined( $self->{string} ) );
-
     bless $self, $class;
 
-    $self->initialize();
+    $self->set_string($string);
 
     lock_keys( %{$self} );
 
@@ -113,8 +110,7 @@ C<initialize> is invoked automatically by the C<new> method during object creati
 
 sub initialize {
 
-    confess "'initialize' method must be overrided by subclasses of "
-      . __PACKAGE__ . "\n";
+    confess "'initialize' method must be overrided by subclasses of DTS::Assignment::Destination.\n";
 
 }
 
@@ -162,7 +158,7 @@ sub get_raw_string {
 =head3 set_string
 
 Modifies the destination string in the object. The string is validated against a regular expression before starting
-changing the property. The regex is "C<^(\'[\w\s]+\'\;\'[\w\s]+\')(\'[\w\s]+\')*>" and it's based on the destination 
+changing the property. The regex is "C<^(\'[\w\s\(\)]+\'\;\'[\w\s\(\)]+\')(\'[\w\s\(\)]+\')*>" and it's based on the destination 
 string specification in MSDN. If the regex does not match, the method will abort program execution.
 
 The programmer must be aware that invoking C<set_string> will automatically execute the C<initialize> method (to setup 
@@ -173,15 +169,16 @@ in it's C<_sibling> attribute, to keep all values syncronized.
 
 sub set_string {
 
-    my $self = shift;
-    $self->{string} = shift;
+    my $self   = shift;
+    my $string = shift;
 
     confess "'string' attribute cannot be undefined"
-      unless ( defined( $self->{string} ) );
+      unless ( defined($string) );
 
-    confess "invalid value of destination string: $self->{string}"
-      unless ( $self->{string} =~ /^(\'[\w\s]+\'\;\'[\w\s]+\')(\'[\w\s]+\')*/);
+    confess "invalid value of destination string: $string"
+      unless ( $string =~ /^(\'[\w\s\(\)]+\'\;\'[\w\s\(\)]+\')(\'[\w\s\(\)]+\')*/ );
 
+    $self->{string} = $string;
     $self->initialize();
     $self->notify_subscribers('changed');
 
