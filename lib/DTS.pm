@@ -6,10 +6,8 @@ DTS - Perl classes to access Microsoft SQL Server 2000 DTS Packages
 
 =head1 DESCRIPTION
 
-Although it's possible to use all features here by using only Win32::OLE module, C<DTS> (being more specific, it's 
+Although it's possible to use all features here by using only C<Win32::OLE> module, C<DTS> (being more specific, it's 
 childs classes) provides a much easier interface (pure Perl) and (hopefully) a better documentation.
-Since it's build over L<Win32::OLE|Win32::OLE> module, DTS will only work with Active Perl distribuition running in a 
-Microsoft Windows operational system.
 
 The API for this class will give only read access to a package attributes. No write methods are available are 
 directly available at this time, but could be executed since at each DTS object created a related object is 
@@ -37,6 +35,12 @@ as L<Test::More|Test::More> (see EXAMPLES directory in the tarball distribution 
 Current development state should be considered BETA, despite the API is already usable. There is a high chance that the
 interface changes during next releases, so be careful when updating.
 
+=head2 IMPORTANT
+
+C<DTS> distribution will be moved to a new registered namespace: C<Win32::SqlServer::DTS>, so release 0.05 will be the last
+release available in the distribution name C<DTS>. All new versions will be available in the new namespace, but I intend to
+maintain the C<DTS> distribution for a while before removing it from CPAN (and send it to Backpan).
+
 =head2 EXPORT
 
 Nothing.
@@ -50,7 +54,7 @@ use Data::Dumper;
 use Carp qw(confess);
 use Devel::AssertOS qw(MSWin32);
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head2 METHODS
 
@@ -76,6 +80,31 @@ sub get_sibling {
 
         confess
           "The reference to the original DTS object is not more available\n";
+
+    }
+
+}
+
+=head3 is_sibling_ok
+
+Validates if the attribute _sibling is defined and has a valid value. Returns true if it's ok, false otherwise.
+
+=cut
+
+sub is_sibling_ok {
+
+    my $self = shift;
+
+    if (    ( exists( $self->{_sibling} ) )
+        and ( $self->{_sibling}->isa('Win32::OLE') ) )
+    {
+
+        return 1;
+
+    }
+    else {
+
+        return 0;
 
     }
 
@@ -135,6 +164,15 @@ __END__
 
 =head1 CAVEATS
 
+All objects under DTS distribution cannot be created without a reference to the original DTS object they mimic: at
+the current development state, object can only be recovered from a MS SQL Server database. Some classes may have methods
+to change their inner attributes, other classes don't. Check the POD for each class to be sure,  but future releases 
+should have write methods for all classes implemented.
+
+DTS distribuition replicates several DTS classes, but it is still INCOMPLETE. There are many classes there were not 
+replicated, like Bulk Insert Task or Transformation. Check the UML in the project website for an overview of which
+classes are implemented.
+
 The I<sibling> object, kept as an reference, sometimes is quite annoying. This because the MS SQL Server API uses
 a lot of indirection. Using L<Data::Dumper|Data::Dumper>, for example, seems impossible. Using the C<x> (eval) 
 command in the debugger sometimes also shows a interesting visual effect, but is equally useless (setting 
@@ -155,7 +193,8 @@ C<kill_sibling> probably will help also regarding memory using, althought this w
 Once this API is built over L<Win32::OLE|Win32::OLE> module, one will only be able to use C<DTS> modules in a 
 MS Windows operational system that also supports the installation of the MS SQL Server Enterprise Manager, at 
 least the client part of the application, to be able to use the original DTS API that comes with the MS SQL 
-Server client. All issues from L<Win32::OLE|Win32::OLE> applies too.
+Server client. All issues from L<Win32::OLE|Win32::OLE> applies too. Since release 0.04, DTS distribution will die if
+used in any other operational system. See L<Devel::AssertOS|Devel::AssertOS> for more implementation details.
 
 C<DTS> modules were tested with MS SQL Server 8 (or 2000, if you prefer) so maybe some methods will fail if tried 
 on previous versions of MS SQL Server.
@@ -178,8 +217,8 @@ object hierarchy, but one will need to convert examples written in VBScript to P
 README file in the module distribuition about how to enable extended tests for the API.
 
 =item *
-Project website at http://code.google.com/p/perldts for more information, including UML diagrams and Subversion 
-repository.
+Project website at L<http://code.google.com/p/perldts> for more information, including 
+UML diagrams and Subversion repository.
 
 =back
 

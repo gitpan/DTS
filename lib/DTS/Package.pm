@@ -32,12 +32,12 @@ use base qw(Class::Accessor DTS);
 use DTS::TaskFactory;
 use DTS::Connection;
 use Win32::OLE qw(in);
-use Win32::OLE::Variant;
-use DateTime;
+use DTS::DateTime;
+use DTS::Package::Step;
 use Hash::Util qw(lock_keys);
 use File::Spec;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_ro_accessors(
@@ -46,21 +46,63 @@ __PACKAGE__->mk_ro_accessors(
 
 =head2 METHODS
 
+=head3 execute
+
+Execute all the steps available in the package.
+
+Requires that the C<_sibling> attribute exists and is defined correctly, otherwise method call will abort program 
+execution.
+
+Returns a array reference with C<DTS::Package::Step::Result> objects for error checking.
+
 =cut
 
-sub _init_creation_date {
+sub execute {
 
-    my $self              = shift;
-    my $variant_timestamp = shift;
+    my $self = shift;
 
-    $self->{creation_date} = DateTime->new(
-        year   => $variant_timestamp->Date('yyyy'),
-        month  => $variant_timestamp->Date('M'),
-        day    => $variant_timestamp->Date('d'),
-        hour   => $variant_timestamp->Time('H'),
-        minute => $variant_timestamp->Time('m'),
-        second => $variant_timestamp->Time('s'),
-    );
+    $self->get_sibling()->Execute();
+
+    my $iterator = $self->get_steps();
+
+    my @results;
+
+    while ( my $step = $iterator->() ) {
+
+        push( @results, $step->get_exec_error_info() );
+
+    }
+
+    return \@results;
+
+}
+
+=head3 get_steps
+
+Returns an iterator to get all steps defined inside the DTS package. Each call to the iterator will return a
+C<DTS::Package::Step> object until all steps are returned.
+
+=cut
+
+sub get_steps {
+
+    my $self = shift;
+
+    my $steps   = $self->get_sibling()->Steps;
+    my $total   = scalar( in($steps) );
+    my $counter = 0;
+
+    return sub {
+
+        return unless ( $counter < $total );
+
+        my $step = ( in($steps) )[$counter];
+
+        $counter++;
+
+        return DTS::Package::Step->new($step);
+
+      }
 
 }
 
@@ -109,25 +151,27 @@ sub new {
 
     bless $self, $class;
 
-    $self->{auto_commit}      = $self->get_sibling->AutoCommitTransaction;
-    $self->{creator_computer} = $self->get_sibling->CreatorComputerName;
-    $self->{description}      = $self->get_sibling->Description;
-    $self->{fail_on_error}    = $self->get_sibling->FailOnError;
-    $self->{log_file}         = $self->get_sibling->LogFileName;
-    $self->{max_steps}        = $self->get_sibling->MaxConcurrentSteps;
-    $self->{name}             = $self->get_sibling->Name;
-    $self->{id}               = $self->get_sibling->PackageID;
-    $self->{version_id}       = $self->get_sibling->VersionID;
+    $self->{auto_commit}      = $self->get_sibling()->AutoCommitTransaction;
+    $self->{creator_computer} = $self->get_sibling()->CreatorComputerName;
+    $self->{description}      = $self->get_sibling()->Description;
+    $self->{fail_on_error}    = $self->get_sibling()->FailOnError;
+    $self->{log_file}         = $self->get_sibling()->LogFileName;
+    $self->{max_steps}        = $self->get_sibling()->MaxConcurrentSteps;
+    $self->{name}             = $self->get_sibling()->Name;
+    $self->{id}               = $self->get_sibling()->PackageID;
+    $self->{version_id}       = $self->get_sibling()->VersionID;
     $self->{nt_event_log} =
       $self->{_sibling}->WriteCompletionStatusToNTEventLog;
 
-    $self->{log_to_server}        = $self->get_sibling->LogToSQLServer;
-    $self->{explicit_global_vars} = $self->get_sibling->ExplicitGlobalVariables;
+    $self->{log_to_server} = $self->get_sibling()->LogToSQLServer;
+    $self->{explicit_global_vars} =
+      $self->get_sibling()->ExplicitGlobalVariables;
 
     $self->_set_lineage_opts();
     $self->_set_priority();
 
-    $self->_init_creation_date( $self->get_sibling->CreationDate );
+    $self->{creation_date} =
+      DTS::DateTime->new( $self->get_sibling()->CreationDate );
 
     lock_keys( %{$self} );
 

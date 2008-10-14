@@ -1,2 +1,1 @@
-include automatic tests for the new classes
-modify methods that returns collections to return a iterator instead
+modify methods that returns collections to return a iterator instead of all objects at once
