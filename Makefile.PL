@@ -13,7 +13,21 @@ my %config = (
         'Class::Publisher' => 0.2,
         'Devel::AssertOS'  => 0
     },
-    dist => { SUFFIX => '.gz', COMPRESS => 'gzip --best' },
+    META_MERGE => {
+        resources => {
+            license  => 'http://www.gnu.org/licenses/old-licenses/gpl-2.0.html',
+            homepage => 'http://code.google.com/p/perldts/',
+            bugtracker => 'http://code.google.com/p/perldts/issues/list',
+            repository => 'http://code.google.com/p/perldts/source/browse/'
+        },
+    },
+    LICENSE => 'GNU General Public License (GPL)',
+
+    # :WORKAROUND:14/10/2008:arfreitas: ExtUtils::MakeMaker version available
+    # for ActivePerl does not support META_MERGE tags. Until an upgrade
+    # is available, I'll disable META.yml generation, writing it by hand
+    NO_META => 1,
+    dist    => { SUFFIX => '.gz', COMPRESS => 'gzip --best' },
     (
         $] >= 5.005
         ?    ## Add these new keywords supported since 5.005
