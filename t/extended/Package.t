@@ -14,11 +14,11 @@ is( ref( $package->get_steps() ),
     'CODE', 'get_steps method returns a code reference' );
 
 is_deeply( $package->execute(), fetch_steps_results(),
-    'execute method returns an array reference with DTS::Package::Step::Results objects'
+'execute method returns an array reference with DTS::Package::Step::Results objects'
 );
 
 ok( not( $package->log_to_server() ), 'log to server is disable' );
-ok( $package->auto_commit(), 'auto commit is active' );
+ok( $package->auto_commit(),          'auto commit is active' );
 ok(
     $package->use_explicit_global_vars(),
     'explicit global variables are active'
@@ -42,33 +42,26 @@ ok(
 ok( $package->to_string(), 'to_string returns a true value' );
 
 is( ref( $package->get_connections() ),
-    'ARRAY', 'get_connections returns an array reference' );
+    'CODE', 'get_connections returns a code reference' );
 
 ok( $package->count_connections() == 2, 'package has two connections' );
 
-TODO: {
+is( ref( $package->get_tasks() ), 'CODE', 'get_tasks returns a iterator' );
 
-    todo_skip 'DTSExecuteSQLTask is not a implemented DTS::Task subclass', 1;
-
-    is( ref( $package->get_tasks() ),
-        'ARRAY', 'get_tasks returns an array reference' );
-
-}
-
-ok( $package->count_tasks() == 5, 'package has 5 tasks' );
+is( $package->count_tasks(), 5, 'package has 5 tasks' );
 
 is( ref( $package->get_datapumps() ),
-    'ARRAY', 'get_datapump returns an array reference' );
+    'CODE', 'get_datapump returns a code reference' );
 
 ok( $package->count_datapumps() == 1, 'package has one datapump' );
 
 is( ref( $package->get_dynamic_props() ),
-    'ARRAY', 'get_dynamic_props returns an array reference' );
+    'CODE', 'get_dynamic_props returns a code reference' );
 
 ok( $package->count_dynamic_props() == 1, 'package has one datapump' );
 
 is( ref( $package->get_execute_pkgs() ),
-    'ARRAY', 'get_execute_pkgs returns an array reference' );
+    'CODE', 'get_execute_pkgs returns a code reference' );
 
 ok(
     $package->count_execute_pkgs() == 1,
@@ -76,7 +69,7 @@ ok(
 );
 
 is( ref( $package->get_send_emails() ),
-    'ARRAY', 'get_send_emails method returns an array reference' );
+    'CODE', 'get_send_emails method returns a code reference' );
 
 ok( $package->count_send_emails() == 1, 'package has one Send Mail Task' );
 

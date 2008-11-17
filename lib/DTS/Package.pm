@@ -36,8 +36,9 @@ use DTS::DateTime;
 use DTS::Package::Step;
 use Hash::Util qw(lock_keys);
 use File::Spec;
+use DTS::TaskTypes;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_ro_accessors(
@@ -51,7 +52,7 @@ __PACKAGE__->mk_ro_accessors(
 Execute all the steps available in the package.
 
 Requires that the C<_sibling> attribute exists and is defined correctly, otherwise method call will abort program 
-execution.
+execution.get_connections
 
 Returns a array reference with C<DTS::Package::Step::Result> objects for error checking.
 
@@ -79,8 +80,8 @@ sub execute {
 
 =head3 get_steps
 
-Returns an iterator to get all steps defined inside the DTS package. Each call to the iterator will return a
-C<DTS::Package::Step> object until all steps are returned.
+Returns an iterator to get all steps defined inside the DTS package. Each call to the iterator (that is a code reference) 
+will return a C<DTS::Package::Step> object until all steps are returned.
 
 =cut
 
@@ -173,6 +174,8 @@ sub new {
     $self->{creation_date} =
       DTS::DateTime->new( $self->get_sibling()->CreationDate );
 
+    $self->{_known_tasks} = undef;
+
     lock_keys( %{$self} );
 
     return $self;
@@ -221,7 +224,7 @@ sub fail_on_error {
 sub _set_priority {
 
     my $self         = shift;
-    my $numeric_code = $self->get_sibling->PackagePriorityClass;
+    my $numeric_code = $self->get_sibling()->PackagePriorityClass;
 
   CASE: {
 
@@ -254,7 +257,7 @@ sub _set_lineage_opts {
 
     my $self = shift;
 
-    my $numeric_code = $self->get_sibling->LineageOptions;
+    my $numeric_code = $self->get_sibling()->LineageOptions;
 
     $self->{add_lineage_vars}       = 0;
     $self->{is_lineage_none}        = 0;
@@ -377,7 +380,8 @@ sub to_string {
 
 =head3 get_connections
 
-Returns an array reference with all connections objects available inside the package.
+Returns an iterator (code reference) that will return a C<DTS::Connection> object at each invocation until there are no
+more objects available.
 
 This method depends on having the C<_sibling> attribute available, therefore is not possible to invoke this method
 after invoking the C<kill_sibling> method.
@@ -386,22 +390,27 @@ after invoking the C<kill_sibling> method.
 
 sub get_connections {
 
-    my $self = shift;
-    my @connections_list;
+    my $self    = shift;
+    my $total   = scalar( in( $self->get_sibling()->Connections ) );
+    my $counter = 0;
 
-    foreach my $connection ( in( $self->get_sibling->Connections ) ) {
+    return sub {
 
-        push( @connections_list, DTS::Connection->new($connection) );
+        return unless ( $counter < $total );
 
-    }
+        my $conn = ( in( $self->get_sibling()->Connections ) )[$counter];
 
-    return \@connections_list;
+        $counter++;
+
+        return DTS::Connection->new($conn);
+
+      }
 
 }
 
 =head3 count_connections
 
-Return an integer that represents the total amount of connections available in the package object.
+Returns an integer that represents the total amount of connections available in the package object.
 
 Besides the convenience, this method is uses less resources than invoking the respective C<get_> method and 
 looping over the references in the array reference.
@@ -428,7 +437,8 @@ sub count_connections {
 
 =head3 get_tasks
 
-Returns an array reference with all tasks available in the package.
+Returns an iterator. At each iterator (which is a code reference) call, one subclass object of C<DTS::Task> will be 
+returned.
 
 This method depends on having the C<_sibling> attribute available, therefore is not possible to invoke this method
 after invoking the C<kill_sibling> method.
@@ -441,16 +451,22 @@ should be "fixed" in future releases with the implementation of the missing clas
 
 sub get_tasks {
 
-    my $self = shift;
-    my @tasks_list;
+    my $self    = shift;
+    my $tasks   = $self->get_sibling()->Tasks;
+    my $total   = scalar( in($tasks) );
+    my $counter = 0;
 
-    foreach my $task ( in( $self->get_sibling->Tasks ) ) {
+    return sub {
 
-        push( @tasks_list, DTS::TaskFactory::create($task) );
+        return unless ( $counter < $total );
 
-    }
+        my $task = ( in($tasks) )[$counter];
 
-    return \@tasks_list;
+        $counter++;
+
+        return DTS::TaskFactory::create($task);
+
+      }
 
 }
 
@@ -477,20 +493,72 @@ sub count_tasks {
 
 }
 
+=head3 _get_tasks_by_type
+
+C<_get_tasks_by_type> is a "private method". It will return an iterator (which is a code reference) that will return
+C<DTS::Task> subclasses objects at each call depending on the type passed as a parameter. It will not return and will 
+complete ignore any Task class that is not returned by C<DTS::TaskTypes::get_types()>.
+
+This method creates a cache after first call, so don't expect it will find new tasks after first invocation.
+
+=cut
+
 sub _get_tasks_by_type {
 
-    my $self = shift;
-    my $type = shift;
-    my @items;
+    my $self             = shift;
+    my $type             = shift;
+    my $iterator_counter = 0;
 
-    foreach my $task ( in( $self->get_sibling->Tasks ) ) {
+    unless ( keys( %{ $self->{_known_tasks} } ) ) {
 
-        next unless ( $task->CustomTaskID eq $type );
-        push( @items, DTS::TaskFactory::create($task) );
+        my $list = DTS::TaskTypes::get_types();
+
+        foreach my $item ( @{$list} ) {
+
+            $self->{_known_tasks}->{$item} = [];
+
+        }
+
+        #avoid caching invalid types
+        lock_keys( %{ $self->{_known_tasks} } );
+
+        my $counter = 0;
+
+        foreach my $task ( in( $self->get_sibling()->Tasks ) ) {
+
+# :TRICKY:3/11/2008:arfreitas: must avoid completely caching an unimplemeted DTS class in Perldts
+            if ( grep { $task->CustomTaskID eq $_ } @{$list} ) {
+
+                push(
+                    @{ $self->{_known_tasks}->{ $task->CustomTaskID } },
+                    $counter
+                );
+
+            }
+
+# counter must be incremented anyway to get the proper indexes returned by in() function
+            $counter++;
+
+        }
 
     }
 
-    return \@items;
+    return sub {
+
+        my $total = scalar( @{ $self->{_known_tasks}->{$type} } );
+
+        return unless ( $iterator_counter < $total );
+
+#array slash of all tasks using as a index the number provided by known tasks cache
+        my $task =
+          ( in( $self->get_sibling()->Tasks ) )
+          [ $self->{_known_tasks}->{$type}->[$iterator_counter] ];
+
+        $iterator_counter++;
+
+        return DTS::TaskFactory::create($task);
+
+      }
 
 }
 
@@ -500,7 +568,7 @@ sub _count_tasks_by_type {
     my $type    = shift;
     my $counter = 0;
 
-    foreach my $task ( in( $self->get_sibling->Tasks ) ) {
+    foreach my $task ( in( $self->get_sibling()->Tasks ) ) {
 
         next unless ( $task->CustomTaskID eq $type );
         $counter++;
@@ -532,7 +600,8 @@ sub count_datapumps {
 
 =head3 get_datapumps
 
-Returns an array reference with all the C<DataPumpTasks> tasks available in the package.
+Returns a iterator (code reference) that will return, at each invocation, a the C<DataPumpTasks> tasks available 
+in the package.
 
 This method depends on having the C<_sibling> attribute available, therefore is not possible to invoke this method
 after invoking the C<kill_sibling> method.
@@ -567,7 +636,8 @@ sub count_dynamic_props {
 
 =head3 get_dynamic_props
 
-Returns an array reference with all the C<DynamicPropertiesTask> tasks available in the package.
+Returns a iterator (code reference) that will return a C<DTS::Task::DynamicProperty> object at each invocation until
+there is no more tasks to return.
 
 This method depends on having the C<_sibling> attribute available, therefore is not possible to invoke this method
 after invoking the C<kill_sibling> method.
@@ -583,7 +653,8 @@ sub get_dynamic_props {
 
 =head3 get_execute_pkgs
 
-Returns an array reference with all the C<ExecutePackageTask> tasks available in the package.
+Returns a iterator (code reference) that will return a C<DTS::Task::ExecutePackage> object at each invocation until
+there is no more tasks to return.
 
 This method depends on having the C<_sibling> attribute available, therefore is not possible to invoke this method
 after invoking the C<kill_sibling> method.
@@ -618,7 +689,8 @@ sub count_execute_pkgs {
 
 =head3 get_send_emails
 
-Returns an array reference with all the C<SendMailTask> tasks available in the package.
+Returns an iterator (code reference) that will return a C<DTS::Task::SendEmail> at each invocation until there is no
+more tasks available.
 
 This method depends on having the C<_sibling> attribute available, therefore is not possible to invoke this method
 after invoking the C<kill_sibling> method.
@@ -626,7 +698,9 @@ after invoking the C<kill_sibling> method.
 =cut
 
 sub get_send_emails {
+
     my $self = shift;
+
     return $self->_get_tasks_by_type('DTSSendMailTask');
 
 }
@@ -806,7 +880,7 @@ L<DTS::Application> at C<perldoc>.
 L<Win32::OLE> at C<perldoc>.
 
 =item *
-L<DateTime> and L<DateTime::TimeZone::Floating> at C<perldoc> for details about the implementation of 
+L<DTS::DateTime>, L<DateTime> and L<DateTime::TimeZone::Floating> at C<perldoc> for details about the implementation of 
 C<creation_date> attribute.
 
 =item *

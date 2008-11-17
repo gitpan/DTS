@@ -1,1 +1,0 @@
-modify methods that returns collections to return a iterator instead of all objects at once
